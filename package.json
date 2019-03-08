@@ -1,0 +1,15 @@
+{
+  "name": "wasmly",
+  "version": "0.0.4",
+  "description": "",
+  "main": "index.js",
+  "author": "Richard Anaya",
+  "license": "MIT",
+  "dependencies": {
+    "flattenbytes": "^1.0.0",
+    "wasm-leb128": "^1.1.2"
+  },
+  "devDependencies": {
+    "http-server": "^0.11.1"
+  }
+}

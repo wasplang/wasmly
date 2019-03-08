@@ -1,0 +1,19 @@
+<script>
+  fetch("out.wasm")
+    .then(response => response.arrayBuffer())
+    .then(bytes => {
+      return WebAssembly.instantiate(bytes);
+    })
+    .then(results => {
+      let allocator = results.instance.exports;
+      console.log("current heap: " + allocator.heap);
+      console.log("allocate 4");
+      let m = allocator.malloc(4);
+      console.log("allocation begins at: " + m);
+      console.log("current heap: " + allocator.heap);
+      console.log("allocate 4");
+      m = allocator.malloc(4);
+      console.log("allocation begins at: " + m);
+      console.log("current heap: " + allocator.heap);
+    });
+</script>

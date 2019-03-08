@@ -1,0 +1,9 @@
+[package]
+name = "wasmly"
+version = "0.1.0"
+authors = ["Richard Anaya"]
+edition = "2018"
+description = "a collection of web assembly constants"
+license = "MIT"
+
+[dependencies]
