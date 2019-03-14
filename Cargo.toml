@@ -1,6 +1,6 @@
 [package]
 name = "wasmly"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Richard Anaya"]
 edition = "2018"
 description = "programatically build a web assembly module"

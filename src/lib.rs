@@ -840,7 +840,7 @@ fn section(c: Vec<WebAssembly>) -> WebAssembly {
 }
 
 impl App {
-    fn to_bytes(&mut self) -> Vec<u8> {
+    pub fn to_bytes(&mut self) -> Vec<u8> {
         let mut signatures = vec![];
         let mut tables = vec![];
         for i in 0..self.tables.len() {
