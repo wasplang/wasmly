@@ -800,7 +800,7 @@ impl App {
         self.tables.push(g)
     }
 
-    pub fn write_to_file(&self, file_name: &str) -> Result<(), std::io::Error> {
+    pub fn write_to_file(&mut self, file_name: &str) -> Result<(), std::io::Error> {
         File::create(file_name)?.write(&self.to_bytes())?;
         Ok(())
     }
@@ -839,8 +839,8 @@ fn section(c: Vec<WebAssembly>) -> WebAssembly {
     bytevec(&vec![vec(&c)])
 }
 
-impl ToBytes for App {
-    fn to_bytes(&self) -> Vec<u8> {
+impl App {
+    fn to_bytes(&mut self) -> Vec<u8> {
         let mut signatures = vec![];
         let mut tables = vec![];
         for i in 0..self.tables.len() {
@@ -909,6 +909,7 @@ impl ToBytes for App {
                     vec(&function_outputs),
                 ]
                 .into();
+                self.types.push(FunctionType::new(function.inputs.clone().unwrap_or(vec![]),function.output.clone()));
                 signatures.push(sig);
                 sig_idx = Some((signatures.len() - 1) as u32)
             }
@@ -950,28 +951,42 @@ impl ToBytes for App {
         let mut imports = vec![];
         for i in 0..self.imports.len() {
             if let Import::ImportFunction(import) = &self.imports[i] {
-                let function_inputs = import
-                    .inputs
-                    .iter()
-                    .map(|x| x.into())
-                    .collect::<Vec<WebAssembly>>();
-                let mut function_outputs = vec![];
-                if let Some(x) = &import.output {
-                    function_outputs = vec![x.into()];
+
+                let mut sig_idx = None;
+                for i in 0..self.types.len() {
+                    let t = &self.types[i];
+                    if t.output == import.output
+                        && t.inputs == import.inputs.clone()
+                    {
+                        sig_idx = Some(i as u32);
+                    }
                 }
-                let sig = vec![
-                    WebAssembly::FUNC,
-                    vec(&function_inputs),
-                    vec(&function_outputs),
-                ]
-                .into();
-                signatures.push(sig);
+                if sig_idx.is_none() {
+                    let function_inputs = import
+                        .inputs
+                        .iter()
+                        .map(|x| x.into())
+                        .collect::<Vec<WebAssembly>>();
+                    let mut function_outputs = vec![];
+                    if let Some(x) = &import.output {
+                        function_outputs = vec![x.into()];
+                    }
+                    let sig = vec![
+                        WebAssembly::FUNC,
+                        vec(&function_inputs),
+                        vec(&function_outputs),
+                    ]
+                    .into();
+                    signatures.push(sig);
+                    self.types.push(FunctionType::new(import.inputs.clone(),import.output.clone()));
+                    sig_idx = Some((signatures.len() - 1) as u32);
+                }
                 imports.push(
                     vec![
                         str("env"),
                         str(&import.name),
                         WebAssembly::DESC_FUNCTION,
-                        ((signatures.len() - 1) as u32).into(),
+                        (sig_idx.unwrap()).into(),
                     ]
                     .into(),
                 )
