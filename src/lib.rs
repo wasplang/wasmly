@@ -701,6 +701,21 @@ impl ImportFunction {
 }
 
 #[derive(Debug)]
+pub struct FunctionType {
+    inputs: Vec<DataType>,
+    output: Option<DataType>,
+}
+
+impl FunctionType {
+    pub fn new(inputs: Vec<DataType>, output: Option<DataType>) -> Self {
+        return FunctionType {
+            inputs: inputs,
+            output: output,
+        };
+    }
+}
+
+#[derive(Debug)]
 pub struct Global {
     value: i32,
     editable: bool,
@@ -717,6 +732,7 @@ impl Global {
 
 #[derive(Debug)]
 pub struct App {
+    types: Vec<FunctionType>,
     imports: Vec<Import>,
     functions: Vec<Function>,
     tables: Vec<Table>,
@@ -727,12 +743,18 @@ pub struct App {
 impl App {
     pub fn new(imports: Vec<Import>) -> Self {
         return App {
+            types: vec![],
             imports: imports,
             functions: vec![],
             data: vec![],
             globals: vec![],
             tables: vec![]
         };
+    }
+
+    pub fn add_type(&mut self, f: FunctionType) -> i32 {
+        self.types.push(f);
+        (self.types.len() - 1) as i32
     }
 
     pub fn add_function(&mut self, f: Function) -> i32 {
@@ -805,6 +827,25 @@ impl ToBytes for App {
         let mut functions = vec![];
         let mut code = vec![];
         let mut exports = vec![vec!["memory".into(), WebAssembly::DESC_MEMORY, 0.into()].into()];
+
+        for i in 0..self.types.len() {
+            let function_type = &self.types[i];
+            let function_inputs = (&function_type.inputs)
+                .into_iter()
+                .map(|x| x.into())
+                .collect::<Vec<WebAssembly>>();
+            let mut function_outputs = vec![];
+            if let Some(x) = &function_type.output {
+                function_outputs = vec![x.into()];
+            }
+            let sig = vec![
+                WebAssembly::FUNC,
+                vec(&function_inputs),
+                vec(&function_outputs),
+            ]
+            .into();
+            signatures.push(sig);
+        }
 
         for i in 0..self.functions.len() {
             let function = &self.functions[i];
