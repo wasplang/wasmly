@@ -565,7 +565,7 @@ pub fn flatten(wasm: &Vec<WebAssembly>) -> Vec<u8> {
         })
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Eq,PartialEq)]
 pub enum DataType {
     I32,
     I64,
@@ -700,7 +700,7 @@ impl ImportFunction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Eq,PartialEq)]
 pub struct FunctionType {
     inputs: Vec<DataType>,
     output: Option<DataType>,
@@ -752,14 +752,20 @@ impl App {
         };
     }
 
-    pub fn add_type(&mut self, f: FunctionType) -> i32 {
+    pub fn add_type(&mut self, f: FunctionType) -> u32 {
+        for i in 0..self.types.len(){
+            let t = &self.types[i];
+            if t.output == f.output && t.inputs == f.inputs {
+                return i as u32;
+            }
+        }
         self.types.push(f);
-        (self.types.len() - 1) as i32
+        (self.types.len() - 1) as u32
     }
 
-    pub fn add_function(&mut self, f: Function) -> i32 {
+    pub fn add_function(&mut self, f: Function) -> u32 {
         self.functions.push(f);
-        (self.imports.len() + self.functions.len() - 1) as i32
+        (self.imports.len() + self.functions.len() - 1) as u32
     }
 
     pub fn add_data(&mut self, g: Data) -> u32 {
@@ -849,25 +855,36 @@ impl ToBytes for App {
 
         for i in 0..self.functions.len() {
             let function = &self.functions[i];
-            let mut function_inputs = vec![];
-            if let Some(x) = &function.inputs {
-                function_inputs = x
-                    .into_iter()
-                    .map(|x| x.into())
-                    .collect::<Vec<WebAssembly>>()
+
+            let mut sig_idx = None;
+            for i in 0..self.types.len(){
+                let t = &self.types[i];
+                if t.output == function.output && t.inputs == function.inputs.clone().unwrap_or(vec![]) {
+                    sig_idx = Some(i as u32);
+                }
             }
-            let mut function_outputs = vec![];
-            if let Some(x) = &function.output {
-                function_outputs = vec![x.into()];
+            if sig_idx.is_none() {
+                let mut function_inputs = vec![];
+                if let Some(x) = &function.inputs {
+                    function_inputs = x
+                        .into_iter()
+                        .map(|x| x.into())
+                        .collect::<Vec<WebAssembly>>()
+                }
+                let mut function_outputs = vec![];
+                if let Some(x) = &function.output {
+                    function_outputs = vec![x.into()];
+                }
+                let sig = vec![
+                    WebAssembly::FUNC,
+                    vec(&function_inputs),
+                    vec(&function_outputs),
+                ]
+                .into();
+                signatures.push(sig);
+                sig_idx = Some((signatures.len() - 1) as u32)
             }
-            let sig = vec![
-                WebAssembly::FUNC,
-                vec(&function_inputs),
-                vec(&function_outputs),
-            ]
-            .into();
-            signatures.push(sig);
-            functions.push(((signatures.len() - 1) as u32).into());
+            functions.push(sig_idx.unwrap().into());
             if let Some(x) = &function.name {
                 exports.push(
                     vec![
