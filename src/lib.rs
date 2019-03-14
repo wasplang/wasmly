@@ -565,7 +565,7 @@ pub fn flatten(wasm: &Vec<WebAssembly>) -> Vec<u8> {
         })
 }
 
-#[derive(Debug, Clone,Eq,PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DataType {
     I32,
     I64,
@@ -589,11 +589,8 @@ pub struct Table {
 }
 
 impl Table {
-    pub fn new(min:u32,max:u32) -> Table{
-        Table {
-            min:min,
-            max:max,
-        }
+    pub fn new(min: u32, max: u32) -> Table {
+        Table { min: min, max: max }
     }
 }
 
@@ -650,7 +647,7 @@ impl Data {
 pub enum Import {
     ImportFunction(ImportFunction),
     ImportTable(ImportTable),
-    ImportMemory(ImportMemory)
+    ImportMemory(ImportMemory),
 }
 
 #[derive(Debug)]
@@ -660,10 +657,10 @@ pub struct ImportTable {
 }
 
 impl ImportTable {
-    pub fn new(name: String, idx:u32) -> Self {
+    pub fn new(name: String, idx: u32) -> Self {
         return ImportTable {
             name: name,
-            idx:idx
+            idx: idx,
         };
     }
 }
@@ -675,10 +672,10 @@ pub struct ImportMemory {
 }
 
 impl ImportMemory {
-    pub fn new(name: String, idx:u32) -> Self {
+    pub fn new(name: String, idx: u32) -> Self {
         return ImportMemory {
             name: name,
-            idx:idx
+            idx: idx,
         };
     }
 }
@@ -700,7 +697,7 @@ impl ImportFunction {
     }
 }
 
-#[derive(Debug,Eq,PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct FunctionType {
     inputs: Vec<DataType>,
     output: Option<DataType>,
@@ -711,6 +708,19 @@ impl FunctionType {
         return FunctionType {
             inputs: inputs,
             output: output,
+        };
+    }
+}
+
+#[derive(Debug)]
+pub struct Element {
+    function: u32,
+}
+
+impl Element {
+    pub fn new(value: u32) -> Self {
+        return Element {
+            function:value
         };
     }
 }
@@ -738,6 +748,8 @@ pub struct App {
     tables: Vec<Table>,
     data: Vec<Data>,
     globals: Vec<Global>,
+    elements_offset: u32,
+    elements: Vec<Element>,
 }
 
 impl App {
@@ -748,12 +760,14 @@ impl App {
             functions: vec![],
             data: vec![],
             globals: vec![],
-            tables: vec![]
+            tables: vec![],
+            elements_offset: 0,
+            elements: vec![],
         };
     }
 
     pub fn add_type(&mut self, f: FunctionType) -> u32 {
-        for i in 0..self.types.len(){
+        for i in 0..self.types.len() {
             let t = &self.types[i];
             if t.output == f.output && t.inputs == f.inputs {
                 return i as u32;
@@ -766,6 +780,11 @@ impl App {
     pub fn add_function(&mut self, f: Function) -> u32 {
         self.functions.push(f);
         (self.imports.len() + self.functions.len() - 1) as u32
+    }
+
+    pub fn add_elements(&mut self, elements_offset: u32, els: Vec<Element>) {
+        self.elements_offset = elements_offset;
+        self.elements = els;
     }
 
     pub fn add_data(&mut self, g: Data) -> u32 {
@@ -782,6 +801,7 @@ impl App {
     }
 
     pub fn write_to_file(&self, file_name: &str) -> Result<(), std::io::Error> {
+        println!("{:?}",&self.to_bytes());
         File::create(file_name)?.write(&self.to_bytes())?;
         Ok(())
     }
@@ -811,7 +831,7 @@ pub fn vec(c: &Vec<WebAssembly>) -> WebAssembly {
         .map(|x| x.to_bytes())
         .flat_map(|s| s.into_iter())
         .collect();
-    let mut bytes =uint(c.len() as u32).to_bytes();
+    let mut bytes = uint(c.len() as u32).to_bytes();
     bytes.extend_from_slice(&content_bytes);
     WebAssembly::RAW(bytes)
 }
@@ -826,9 +846,16 @@ impl ToBytes for App {
         let mut tables = vec![];
         for i in 0..self.tables.len() {
             let table = &self.tables[i];
-            tables.push(vec![WebAssembly::ANYFUNC,WebAssembly::LIMIT_MIN_MAX,uint(table.min).into(),uint(table.max).into()].into())
+            tables.push(
+                vec![
+                    WebAssembly::ANYFUNC,
+                    WebAssembly::LIMIT_MIN_MAX,
+                    uint(table.min).into(),
+                    uint(table.max).into(),
+                ]
+                .into(),
+            )
         }
-
 
         let mut functions = vec![];
         let mut code = vec![];
@@ -857,9 +884,11 @@ impl ToBytes for App {
             let function = &self.functions[i];
 
             let mut sig_idx = None;
-            for i in 0..self.types.len(){
+            for i in 0..self.types.len() {
                 let t = &self.types[i];
-                if t.output == function.output && t.inputs == function.inputs.clone().unwrap_or(vec![]) {
+                if t.output == function.output
+                    && t.inputs == function.inputs.clone().unwrap_or(vec![])
+                {
                     sig_idx = Some(i as u32);
                 }
             }
@@ -989,6 +1018,8 @@ impl ToBytes for App {
             )
         }
 
+        println!("{:?}", self.elements.iter().map(|x|uint(x.function)).collect::<Vec<WebAssembly>>());
+
         flatten(&vec![
             WebAssembly::MAGIC_NUMBER,
             WebAssembly::VERSION_1,
@@ -1008,6 +1039,10 @@ impl ToBytes for App {
             section(globals),
             WebAssembly::SECTION_EXPORT,
             section(exports),
+            WebAssembly::SECTION_ELEMENT,
+            section(
+                vec![vec![0u32.into(), WebAssembly::I32_CONST, self.elements_offset.into(), WebAssembly::END, (self.elements.len() as u32).into(), self.elements.iter().map(|x|uint(x.function)).collect::<Vec<WebAssembly>>().into()].into()].into()
+            ),
             WebAssembly::SECTION_CODE,
             section(code),
             WebAssembly::SECTION_DATA,
