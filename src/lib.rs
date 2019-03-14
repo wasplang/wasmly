@@ -632,12 +632,12 @@ impl Function {
 #[derive(Debug)]
 pub struct Data {
     memory: u32,
-    offset: u32,
+    offset: i32,
     data: Vec<u8>,
 }
 
 impl Data {
-    pub fn new(offset: u32, data: Vec<u8>) -> Self {
+    pub fn new(offset: i32, data: Vec<u8>) -> Self {
         return Data {
             memory: 0,
             offset: offset,
@@ -740,9 +740,9 @@ impl App {
         (self.imports.len() + self.functions.len() - 1) as i32
     }
 
-    pub fn add_data(&mut self, g: Data) -> i32 {
+    pub fn add_data(&mut self, g: Data) -> u32 {
         self.data.push(g);
-        (self.data.len() - 1) as i32
+        (self.data.len() - 1) as u32
     }
 
     pub fn add_global(&mut self, g: Global) {
