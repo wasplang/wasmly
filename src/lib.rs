@@ -801,7 +801,6 @@ impl App {
     }
 
     pub fn write_to_file(&self, file_name: &str) -> Result<(), std::io::Error> {
-        println!("{:?}",&self.to_bytes());
         File::create(file_name)?.write(&self.to_bytes())?;
         Ok(())
     }
@@ -1017,8 +1016,6 @@ impl ToBytes for App {
                 .into(),
             )
         }
-
-        println!("{:?}", self.elements.iter().map(|x|uint(x.function)).collect::<Vec<WebAssembly>>());
 
         flatten(&vec![
             WebAssembly::MAGIC_NUMBER,
