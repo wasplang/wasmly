@@ -231,6 +231,23 @@ impl From<&DataType> for WebAssembly {
     }
 }
 
+impl From<f64> for WebAssembly {
+    fn from(i: f64) -> Self {
+        let raw_bytes: [u8; 8] = unsafe { std::mem::transmute(i) };
+        let bytes: Vec<u8> = raw_bytes.to_vec();
+        WebAssembly::RAW(bytes)
+    }
+}
+
+impl From<f32> for WebAssembly {
+    fn from(i: f32) -> Self {
+        let raw_bytes: [u8; 4] = unsafe { std::mem::transmute(i) };
+        let bytes: Vec<u8> = raw_bytes.to_vec();
+        WebAssembly::RAW(bytes)
+    }
+}
+
+
 impl From<i32> for WebAssembly {
     fn from(i: i32) -> Self {
         int(i)
@@ -1032,7 +1049,7 @@ impl App {
             )
         }
 
-        flatten(&vec![
+        let mut v = vec![
             WebAssembly::MAGIC_NUMBER,
             WebAssembly::VERSION_1,
             WebAssembly::SECTION_TYPE,
@@ -1050,16 +1067,22 @@ impl App {
             WebAssembly::SECTION_GLOBAL,
             section(globals),
             WebAssembly::SECTION_EXPORT,
-            section(exports),
-            WebAssembly::SECTION_ELEMENT,
-            section(
+            section(exports)];
+
+        if self.elements.len()>0 {
+            v.extend(vec![WebAssembly::SECTION_ELEMENT,
+                section(
                 vec![vec![0u32.into(), WebAssembly::I32_CONST, self.elements_offset.into(), WebAssembly::END, (self.elements.len() as u32).into(), self.elements.iter().map(|x|uint(x.function)).collect::<Vec<WebAssembly>>().into()].into()].into()
-            ),
+            )]);
+        }
+        v.extend(vec![
             WebAssembly::SECTION_CODE,
             section(code),
             WebAssembly::SECTION_DATA,
             section(data),
-        ])
+        ]);
+
+        flatten(&v)
     }
 }
 

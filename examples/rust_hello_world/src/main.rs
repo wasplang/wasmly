@@ -2,11 +2,11 @@ use wasmly::DataType::*;
 use wasmly::*;
 
 fn main() -> std::io::Result<()> {
-    let mut app = App::new(vec![ImportFunction::new(
+    let mut app = App::new(vec![Import::ImportFunction(ImportFunction::new(
         "console_log".to_string(),
         vec![I32],
         None,
-    )]);
+    ))]);
 
     let d = Data::new(0, "Hello World!\0".as_bytes().to_vec());
     app.add_data(d);
